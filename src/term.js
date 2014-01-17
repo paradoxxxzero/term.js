@@ -2414,11 +2414,12 @@ Terminal.prototype.keyDown = function(ev) {
   switch (ev.keyCode) {
     // backspace
     case 8:
+      key = ev.altKey ? '\x1b' : ''
       if (ev.shiftKey) {
-        key = '\x08'; // ^H
+        key += '\x08'; // ^H
         break;
       }
-      key = '\x7f'; // ^?
+      key += '\x7f'; // ^?
       break;
     // tab
     case 9:
