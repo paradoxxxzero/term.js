@@ -246,6 +246,7 @@ function Terminal(options) {
   this.savedX;
   this.savedY;
   this.savedCols;
+  this.raw = false;
 
   // stream
   this.readable = true;
@@ -1168,6 +1169,7 @@ Terminal.prototype.refresh = function(start, end) {
     , ch
     , width
     , data
+    , raw
     , attr
     , bg
     , fg
@@ -1209,6 +1211,7 @@ Terminal.prototype.refresh = function(start, end) {
     for (; i < width; i++) {
       data = line[i][0];
       ch = line[i][1];
+      raw = line[i][2];
 
       if (i === x) data = -1;
 
@@ -1286,27 +1289,29 @@ Terminal.prototype.refresh = function(start, end) {
           }
         }
       }
-
-      switch (ch) {
-        case '&':
-          out += '&amp;';
-          break;
-        case '<':
-          out += '&lt;';
-          break;
-        case '>':
-          out += '&gt;';
-          break;
-        default:
-          if (ch <= ' ') {
-            out += '&nbsp;';
-          } else {
-            if (isWide(ch)) i++;
-            out += ch;
+      if (raw) {
+        out += ch;
+      } else {
+          switch (ch) {
+            case '&':
+              out += '&amp;';
+              break;
+            case '<':
+              out += '&lt;';
+              break;
+            case '>':
+              out += '&gt;';
+              break;
+            default:
+              if (ch <= ' ') {
+                out += '&nbsp;';
+              } else {
+                if (isWide(ch)) i++;
+                out += ch;
+              }
+              break;
           }
-          break;
       }
-
       attr = data;
     }
 
@@ -1500,17 +1505,17 @@ Terminal.prototype.write = function(data) {
                 }
               }
 
-              this.lines[this.y + this.ybase][this.x] = [this.curAttr, ch];
+              this.lines[this.y + this.ybase][this.x] = [this.curAttr, ch, this.raw];
               this.x++;
               this.updateRange(this.y);
 
               if (isWide(ch)) {
                 j = this.y + this.ybase;
                 if (this.cols < 2 || this.x >= this.cols) {
-                  this.lines[j][this.x - 1] = [this.curAttr, ' '];
+                  this.lines[j][this.x - 1] = [this.curAttr, ' ', this.raw];
                   break;
                 }
-                this.lines[j][this.x] = [this.curAttr, ' '];
+                this.lines[j][this.x] = [this.curAttr, ' ', this.raw];
                 this.x++;
               }
             }
@@ -1689,6 +1694,11 @@ Terminal.prototype.write = function(data) {
             this.log('Switching back to normal keypad.');
             this.applicationKeypad = false;
             this.state = normal;
+            break;
+
+          // Custom addition to print raw html
+          case '"':
+            this.raw = !this.raw;
             break;
 
           default:
@@ -2907,7 +2917,7 @@ Terminal.prototype.blankLine = function(cur) {
     ? this.eraseAttr()
     : this.defAttr;
 
-  var ch = [attr, ' ']
+  var ch = [attr, ' ', false]
     , line = []
     , i = 0;
 
@@ -4736,7 +4746,7 @@ Terminal.prototype.copyBuffer = function(lines) {
   for (var y = 0; y < lines.length; y++) {
     out[y] = [];
     for (var x = 0; x < lines[y].length; x++) {
-      out[y][x] = [lines[y][x][0], lines[y][x][1]];
+      out[y][x] = [lines[y][x][0], lines[y][x][1], lines[y][x][2]];
     }
   }
 
