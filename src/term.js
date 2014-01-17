@@ -1,3 +1,4 @@
+/* -*- mode: js3; js3-indent-level:2; js3-indent-tabs-mode: nil -*- */
 /**
  * term.js - an xterm emulator
  * Copyright (c) 2012-2013, Christopher Jeffrey (MIT License)
@@ -266,6 +267,7 @@ function Terminal(options) {
 
   this.tabs;
   this.setupStops();
+  this.skipNextKey = false;
 }
 
 inherits(Terminal, EventEmitter);
@@ -2397,6 +2399,17 @@ Terminal.prototype.writeln = function(data) {
 Terminal.prototype.keyDown = function(ev) {
   var self = this
     , key;
+
+  // Alt-z works as an escape to relay the following keys to the browser.
+  // usefull to trigger browser shortcuts, i.e.: Alt+Z F5 to reload
+  if (ev.altKey && ev.keyCode == 90 && !this.skipNextKey) {
+    this.skipNextKey = true;
+    return cancel(ev);
+  } else if (this.skipNextKey) {
+    this.skipNextKey = false;
+    return true;
+  }
+
 
   switch (ev.keyCode) {
     // backspace
