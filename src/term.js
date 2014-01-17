@@ -246,7 +246,6 @@ function Terminal(options) {
   this.savedX;
   this.savedY;
   this.savedCols;
-  this.raw = false;
 
   // stream
   this.readable = true;
@@ -1169,7 +1168,6 @@ Terminal.prototype.refresh = function(start, end) {
     , ch
     , width
     , data
-    , raw
     , attr
     , bg
     , fg
@@ -1211,7 +1209,6 @@ Terminal.prototype.refresh = function(start, end) {
     for (; i < width; i++) {
       data = line[i][0];
       ch = line[i][1];
-      raw = line[i][2];
 
       if (i === x) data = -1;
 
@@ -1289,7 +1286,9 @@ Terminal.prototype.refresh = function(start, end) {
           }
         }
       }
-      if (raw) {
+
+      // This is a temporary dirty hack for raw html insertion
+      if (ch.length > 1) {
         out += ch;
       } else {
           switch (ch) {
@@ -1505,17 +1504,17 @@ Terminal.prototype.write = function(data) {
                 }
               }
 
-              this.lines[this.y + this.ybase][this.x] = [this.curAttr, ch, this.raw];
+              this.lines[this.y + this.ybase][this.x] = [this.curAttr, ch];
               this.x++;
               this.updateRange(this.y);
 
               if (isWide(ch)) {
                 j = this.y + this.ybase;
                 if (this.cols < 2 || this.x >= this.cols) {
-                  this.lines[j][this.x - 1] = [this.curAttr, ' ', this.raw];
+                  this.lines[j][this.x - 1] = [this.curAttr, ' '];
                   break;
                 }
-                this.lines[j][this.x] = [this.curAttr, ' ', this.raw];
+                this.lines[j][this.x] = [this.curAttr, ' '];
                 this.x++;
               }
             }
@@ -1696,11 +1695,6 @@ Terminal.prototype.write = function(data) {
             this.state = normal;
             break;
 
-          // Custom addition to print raw html
-          case '"':
-            this.raw = !this.raw;
-            break;
-
           default:
             this.state = normal;
             this.error('Unknown ESC control: %s.', ch);
@@ -1813,6 +1807,12 @@ Terminal.prototype.write = function(data) {
               break;
             case 52:
               // manipulate selection data
+              break;
+            case 99:
+              // Custom escape to produce raw html
+              this.lines[this.y + this.ybase][this.x] = [this.curAttr, this.params[1]];
+              this.x++;
+              this.updateRange(this.y);
               break;
             case 104:
             case 105:
@@ -2917,7 +2917,7 @@ Terminal.prototype.blankLine = function(cur) {
     ? this.eraseAttr()
     : this.defAttr;
 
-  var ch = [attr, ' ', false]
+  var ch = [attr, ' ']
     , line = []
     , i = 0;
 
@@ -4746,7 +4746,7 @@ Terminal.prototype.copyBuffer = function(lines) {
   for (var y = 0; y < lines.length; y++) {
     out[y] = [];
     for (var x = 0; x < lines[y].length; x++) {
-      out[y][x] = [lines[y][x][0], lines[y][x][1], lines[y][x][2]];
+      out[y][x] = [lines[y][x][0], lines[y][x][1]];
     }
   }
 
