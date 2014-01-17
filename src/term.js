@@ -2400,8 +2400,19 @@ Terminal.prototype.keyDown = function(ev) {
   var self = this
     , key;
 
+  // Handle shift insert and ctrl insert copy/paste usefull for typematrix keyboard
+  if (ev.shiftKey && ev.keyCode == 45) {
+    this.emit('paste')
+    return true;
+  }
+  if (ev.ctrlKey && ev.keyCode == 45) {
+    this.emit('copy')
+    return true;
+  }
+
   // Alt-z works as an escape to relay the following keys to the browser.
   // usefull to trigger browser shortcuts, i.e.: Alt+Z F5 to reload
+  // May be redundant with keyPrefix
   if (ev.altKey && ev.keyCode == 90 && !this.skipNextKey) {
     this.skipNextKey = true;
     return cancel(ev);
@@ -2410,11 +2421,10 @@ Terminal.prototype.keyDown = function(ev) {
     return true;
   }
 
-
   switch (ev.keyCode) {
     // backspace
     case 8:
-      key = ev.altKey ? '\x1b' : ''
+      key = ev.altKey ? '\x1b' : '';
       if (ev.shiftKey) {
         key += '\x08'; // ^H
         break;
@@ -2622,6 +2632,17 @@ Terminal.prototype.keyDown = function(ev) {
         }
       }
       break;
+  }
+  if (ev.keyCode >= 37 && ev.keyCode <= 40) {
+    if (ev.ctrlKey) {
+      key = key.slice(0, -1) + '1;5' + key.slice(-1);
+    }
+    else if (ev.altKey) {
+      key = key.slice(0, -1) + '1;3' + key.slice(-1);
+    }
+    else if (ev.shiftKey) {
+      key = key.slice(0, -1) + '1;4' + key.slice(-1);
+    }
   }
 
   if (!key) return true;
