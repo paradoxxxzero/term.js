@@ -161,19 +161,6 @@ function Terminal(options) {
     self[key] = options[key];
   });
 
-  if (options.colors.length === 8) {
-    options.colors = options.colors.concat(Terminal._colors.slice(8));
-  } else if (options.colors.length === 16) {
-    options.colors = options.colors.concat(Terminal._colors.slice(16));
-  } else if (options.colors.length === 10) {
-    options.colors = options.colors.slice(0, -2).concat(
-      Terminal._colors.slice(8, -2), options.colors.slice(-2));
-  } else if (options.colors.length === 18) {
-    options.colors = options.colors.concat(
-      Terminal._colors.slice(16, -2), options.colors.slice(-2));
-  }
-  this.colors = options.colors;
-
   this.options = options;
 
   // this.context = options.context || window;
@@ -278,115 +265,12 @@ Terminal.prototype.eraseAttr = function() {
   return (this.defAttr & ~0x1ff) | (this.curAttr & 0x1ff);
 };
 
-/**
- * Colors
- */
-
-// Colors 0-15
-Terminal.tangoColors = [
-  // dark:
-  '#2e3436',
-  '#cc0000',
-  '#4e9a06',
-  '#c4a000',
-  '#3465a4',
-  '#75507b',
-  '#06989a',
-  '#d3d7cf',
-  // bright:
-  '#555753',
-  '#ef2929',
-  '#8ae234',
-  '#fce94f',
-  '#729fcf',
-  '#ad7fa8',
-  '#34e2e2',
-  '#eeeeec'
-];
-
-Terminal.xtermColors = [
-  // dark:
-  '#000000', // black
-  '#cd0000', // red3
-  '#00cd00', // green3
-  '#cdcd00', // yellow3
-  '#0000ee', // blue2
-  '#cd00cd', // magenta3
-  '#00cdcd', // cyan3
-  '#e5e5e5', // gray90
-  // bright:
-  '#7f7f7f', // gray50
-  '#ff0000', // red
-  '#00ff00', // green
-  '#ffff00', // yellow
-  '#5c5cff', // rgb:5c/5c/ff
-  '#ff00ff', // magenta
-  '#00ffff', // cyan
-  '#ffffff'  // white
-];
-
-// Colors 0-15 + 16-255
-// Much thanks to TooTallNate for writing this.
-Terminal.colors = (function() {
-  var colors = Terminal.tangoColors.slice()
-    , r = [0x00, 0x5f, 0x87, 0xaf, 0xd7, 0xff]
-    , i;
-
-  // 16-231
-  i = 0;
-  for (; i < 216; i++) {
-    out(r[(i / 36) % 6 | 0], r[(i / 6) % 6 | 0], r[i % 6]);
-  }
-
-  // 232-255 (grey)
-  i = 0;
-  for (; i < 24; i++) {
-    r = 8 + i * 10;
-    out(r, r, r);
-  }
-
-  function out(r, g, b) {
-    colors.push('#' + hex(r) + hex(g) + hex(b));
-  }
-
-  function hex(c) {
-    c = c.toString(16);
-    return c.length < 2 ? '0' + c : c;
-  }
-
-  return colors;
-})();
-
-// Default BG/FG
-Terminal.colors[256] = '#000000';
-Terminal.colors[257] = '#f0f0f0';
-
-Terminal._colors = Terminal.colors.slice();
-
-Terminal.vcolors = (function() {
-  var out = []
-    , colors = Terminal.colors
-    , i = 0
-    , color;
-
-  for (; i < 256; i++) {
-    color = parseInt(colors[i].substring(1), 16);
-    out.push([
-      (color >> 16) & 0xff,
-      (color >> 8) & 0xff,
-      color & 0xff
-    ]);
-  }
-
-  return out;
-})();
 
 /**
  * Options
  */
 
 Terminal.defaults = {
-  colors: Terminal.colors,
   convertEol: false,
   termName: 'xterm',
   geometry: [80, 24],
@@ -396,7 +280,6 @@ Terminal.defaults = {
   scrollback: 1000,
   screenKeys: false,
   debug: false,
-  useStyle: false
   // programFeatures: false,
   // focusKeys: false,
 };
@@ -474,10 +357,6 @@ Terminal.prototype.initGlobal = function() {
 
   if (this.isIpad || this.isIphone) {
     Terminal.fixIpad(document);
-  }
-
-  if (this.useStyle) {
-    Terminal.insertStyle(document, this.colors[256], this.colors[257]);
   }
 };
 
@@ -626,51 +505,6 @@ Terminal.fixIpad = function(document) {
   }, 1000);
 };
 
-/**
- * Insert a default style
- */
-
-Terminal.insertStyle = function(document, bg, fg) {
-  var style = document.getElementById('term-style');
-  if (style) return;
-
-  var head = document.getElementsByTagName('head')[0];
-  if (!head) return;
-
-  var style = document.createElement('style');
-  style.id = 'term-style';
-
-  // textContent doesn't work well with IE for <style> elements.
-  style.innerHTML = ''
-    + '.terminal {\n'
-    + '  float: left;\n'
-    + '  border: ' + bg + ' solid 5px;\n'
-    + '  font-family: "DejaVu Sans Mono", "Liberation Mono", monospace;\n'
-    + '  font-size: 11px;\n'
-    + '  color: ' + fg + ';\n'
-    + '  background: ' + bg + ';\n'
-    + '}\n'
-    + '\n'
-    + '.terminal-cursor {\n'
-    + '  color: ' + bg + ';\n'
-    + '  background: ' + fg + ';\n'
-    + '}\n';
-
-  // var out = '';
-  // each(Terminal.colors, function(color, i) {
-  //   if (i === 256) {
-  //     out += '\n.term-bg-color-default { background-color: ' + color + '; }';
-  //   }
-  //   if (i === 257) {
-  //     out += '\n.term-fg-color-default { color: ' + color + '; }';
-  //   }
-  //   out += '\n.term-bg-color-' + i + ' { background-color: ' + color + '; }';
-  //   out += '\n.term-fg-color-' + i + ' { color: ' + color + '; }';
-  // });
-  // style.innerHTML += out + '\n';
-
-  head.insertBefore(style, head.firstChild);
-};
 
 /**
  * Open Terminal
@@ -705,8 +539,6 @@ Terminal.prototype.open = function(parent) {
   this.element.className = 'terminal';
   this.element.style.outline = 'none';
   this.element.setAttribute('tabindex', 0);
-  this.element.style.backgroundColor = this.colors[256];
-  this.element.style.color = this.colors[257];
 
   // Create the lines for our terminal.
   this.children = [];
@@ -775,12 +607,6 @@ Terminal.prototype.open = function(parent) {
   // Listen for mouse events and translate
   // them into terminal mouse protocols.
   this.bindMouse();
-
-  // Figure out whether boldness affects
-  // the character width of monospace fonts.
-  if (Terminal.brokenBold == null) {
-    Terminal.brokenBold = isBoldBroken(this.document);
-  }
 
   // this.emit('open');
 
@@ -1173,6 +999,8 @@ Terminal.prototype.refresh = function(start, end) {
     , fg
     , flags
     , row
+    , classes
+    , cursor
     , parent;
 
   if (end - start >= this.rows / 2) {
@@ -1195,12 +1023,11 @@ Terminal.prototype.refresh = function(start, end) {
     out = '';
 
     if (y === this.y
-        && this.cursorState
         && (this.ydisp === this.ybase || this.selectMode)
         && !this.cursorHidden) {
       x = this.x;
     } else {
-      x = -1;
+      x = -Infinity;
     }
 
     attr = this.defAttr;
@@ -1210,83 +1037,58 @@ Terminal.prototype.refresh = function(start, end) {
       data = line[i][0];
       ch = line[i][1];
 
-      if (i === x) data = -1;
-
       if (data !== attr) {
         if (attr !== this.defAttr) {
           out += '</span>';
         }
         if (data !== this.defAttr) {
-          if (data === -1) {
-            out += '<span class="reverse-video terminal-cursor">';
-          } else {
-            out += '<span style="';
 
-            bg = data & 0x1ff;
-            fg = (data >> 9) & 0x1ff;
-            flags = data >> 18;
+          classes = []
+          out += '<span ';
 
-            // bold
-            if (flags & 1) {
-              if (!Terminal.brokenBold) {
-                out += 'font-weight:bold;';
-              }
-              // See: XTerm*boldColors
-              if (fg < 8) fg += 8;
-            }
+          bg = data & 0x1ff;
+          fg = (data >> 9) & 0x1ff;
+          flags = data >> 18;
 
-            // underline
-            if (flags & 2) {
-              out += 'text-decoration:underline;';
-            }
+          // bold
+          if (flags & 1) {
+              classes.push('bold');
 
-            // blink
-            if (flags & 4) {
-              if (flags & 2) {
-                out = out.slice(0, -1);
-                out += ' blink;';
-              } else {
-                out += 'text-decoration:blink;';
-              }
-            }
-
-            // inverse
-            if (flags & 8) {
-              bg = (data >> 9) & 0x1ff;
-              fg = data & 0x1ff;
-              // Should inverse just be before the
-              // above boldColors effect instead?
-              if ((flags & 1) && fg < 8) fg += 8;
-            }
-
-            // invisible
-            if (flags & 16) {
-              out += 'visibility:hidden;';
-            }
-
-            // out += '" class="'
-            //   + 'term-bg-color-' + bg
-            //   + ' '
-            //   + 'term-fg-color-' + fg
-            //   + '">';
-
-            if (bg !== 256) {
-              out += 'background-color:'
-                + this.colors[bg]
-                + ';';
-            }
-
-            if (fg !== 257) {
-              out += 'color:'
-                + this.colors[fg]
-                + ';';
-            }
-
-            out += '">';
+            // See: XTerm*boldColors
+            if (fg < 8) fg += 8;
           }
+
+          // underline
+          if (flags & 2) {
+            classes.push('underline');
+          }
+
+          // blink
+          if (flags & 4) {
+            classes.push('blink');
+          }
+
+          // inverse
+          if (flags & 8) {
+            classes.push('reverse-video');
+          }
+
+          // invisible
+          if (flags & 16) {
+            classes.push('invisible');
+          }
+
+          classes.push('bg-color-' + bg)
+          classes.push('fg-color-' + fg)
+
+          out += 'class="'
+          out += classes.join(' ')
+          out += '">'
         }
       }
-
+      if (i == x) {
+        out += '<span class="' + (this.cursorState ? 'reverse-video ' : '') + 'cursor">'
+      }
       // This is a temporary dirty hack for raw html insertion
       if (ch.length > 1) {
         out += ch;
@@ -1310,6 +1112,9 @@ Terminal.prototype.refresh = function(start, end) {
               }
               break;
           }
+      }
+      if (i == x) {
+        out += '</span>'
       }
       attr = data;
     }
@@ -2410,6 +2215,11 @@ Terminal.prototype.keyDown = function(ev) {
   var self = this
     , key;
 
+  // Don't handle modifiers alone
+  if (ev.keyCode > 15 && ev.keyCode < 19) {
+    return true;
+  }
+
   // Handle shift insert and ctrl insert copy/paste usefull for typematrix keyboard
   if (ev.shiftKey && ev.keyCode == 45) {
     this.emit('paste')
@@ -2426,7 +2236,9 @@ Terminal.prototype.keyDown = function(ev) {
   if (ev.altKey && ev.keyCode == 90 && !this.skipNextKey) {
     this.skipNextKey = true;
     return cancel(ev);
-  } else if (this.skipNextKey) {
+  }
+
+  if (this.skipNextKey) {
     this.skipNextKey = false;
     return true;
   }
@@ -3265,34 +3077,26 @@ Terminal.prototype.charAttributes = function(params) {
       // reset bg
       bg = this.defAttr & 0x1ff;
     } else if (p === 38) {
-      // fg color 256
       if (params[i + 1] === 2) {
+        // fg color 2^24
         i += 2;
-        fg = matchColor(
-          params[i] & 0xff,
-          params[i + 1] & 0xff,
-          params[i + 2] & 0xff);
-        if (fg === -1) fg = 0x1ff;
+        fg = '#' + params[i] & 0xff + params[i + 1] & 0xff + params[i + 2] & 0xff;
         i += 2;
       } else if (params[i + 1] === 5) {
+        // fg color 256
         i += 2;
-        p = params[i] & 0xff;
-        fg = p;
+        fg = params[i] & 0xff;
       }
     } else if (p === 48) {
-      // bg color 256
       if (params[i + 1] === 2) {
+        // bg color 2^24
         i += 2;
-        bg = matchColor(
-          params[i] & 0xff,
-          params[i + 1] & 0xff,
-          params[i + 2] & 0xff);
-        if (bg === -1) bg = 0x1ff;
+        bg = '#' + params[i] & 0xff + params[i + 1] & 0xff + params[i + 2] & 0xff;
         i += 2;
       } else if (params[i + 1] === 5) {
+        // bg color 256
         i += 2;
-        p = params[i] & 0xff;
-        bg = p;
+        bg = params[i] & 0xff;
       }
     } else if (p === 100) {
       // reset fg/bg
@@ -5678,20 +5482,6 @@ function inherits(child, parent) {
   child.prototype = new f;
 }
 
-// if bold is broken, we can't
-// use it in the terminal.
-function isBoldBroken(document) {
-  var body = document.getElementsByTagName('body')[0];
-  var el = document.createElement('span');
-  el.innerHTML = 'hello world';
-  body.appendChild(el);
-  var w1 = el.scrollWidth;
-  el.style.fontWeight = 'bold';
-  var w2 = el.scrollWidth;
-  body.removeChild(el);
-  return w1 !== w2;
-}
-
 var String = this.String;
 var setTimeout = this.setTimeout;
 var setInterval = this.setInterval;
@@ -5714,53 +5504,6 @@ function isWide(ch) {
       || (ch >= '\uffe0' && ch <= '\uffe6')
       || (ch >= '\uffe8' && ch <= '\uffee');
 }
-
-function matchColor(r1, g1, b1) {
-  var hash = (r1 << 16) | (g1 << 8) | b1;
-
-  if (matchColor._cache[hash] != null) {
-    return matchColor._cache[hash];
-  }
-
-  var ldiff = Infinity
-    , li = -1
-    , i = 0
-    , c
-    , r2
-    , g2
-    , b2
-    , diff;
-
-  for (; i < Terminal.vcolors.length; i++) {
-    c = Terminal.vcolors[i];
-    r2 = c[0];
-    g2 = c[1];
-    b2 = c[2];
-
-    diff = matchColor.distance(r1, g1, b1, r2, g2, b2);
-
-    if (diff === 0) {
-      li = i;
-      break;
-    }
-
-    if (diff < ldiff) {
-      ldiff = diff;
-      li = i;
-    }
-  }
-
-  return matchColor._cache[hash] = li;
-}
-
-matchColor._cache = {};
-
-// http://stackoverflow.com/questions/1633828
-matchColor.distance = function(r1, g1, b1, r2, g2, b2) {
-  return Math.pow(30 * (r1 - r2), 2)
-    + Math.pow(59 * (g1 - g2), 2)
-    + Math.pow(11 * (b1 - b2), 2);
-};
 
 function each(obj, iter, con) {
   if (obj.forEach) return obj.forEach(iter, con);
