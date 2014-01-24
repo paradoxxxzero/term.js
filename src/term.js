@@ -275,7 +275,7 @@ Terminal.defaults = {
   termName: 'xterm',
   geometry: [80, 24],
   cursorBlink: true,
-  visualBell: false,
+  visualBell: 0,
   popOnBell: false,
   scrollback: 1000,
   screenKeys: false,
@@ -296,6 +296,7 @@ each(keys(Terminal.defaults), function(key) {
  */
 
 Terminal.focus = null;
+Terminal.last_focus = null;
 
 Terminal.prototype.focus = function() {
   if (Terminal.focus === this) return;
@@ -303,7 +304,6 @@ Terminal.prototype.focus = function() {
   if (Terminal.focus) {
     Terminal.focus.blur();
   }
-
   if (this.sendFocus) this.send('\x1b[I');
   this.showCursor();
 
@@ -320,8 +320,7 @@ Terminal.prototype.focus = function() {
 
 Terminal.prototype.blur = function() {
   if (Terminal.focus !== this) return;
-
-  this.cursorState = 0;
+  this.cursorState = 1;
   this.refresh(this.y, this.y);
   if (this.sendFocus) this.send('\x1b[O');
 
@@ -333,6 +332,7 @@ Terminal.prototype.blur = function() {
 
   // this.emit('blur');
 
+  Terminal.last_focus = Terminal.focus;
   Terminal.focus = null;
 };
 
@@ -429,6 +429,22 @@ Terminal.bindKeys = function(document) {
       if (el === Terminal.focus.element) return;
     } while (el = el.parentNode);
 
+    Terminal.focus.blur();
+  });
+
+  on(window, 'focus', function(ev) {
+    if (!Terminal.focus) {
+      Terminal.focus = Terminal.last_focus;
+    }
+    if (!Terminal.focus) return;
+    Terminal.focus.element.classList.add('focus');
+    Terminal.focus.element.classList.remove('blur');
+  });
+
+  on(window, 'blur', function(ev) {
+    if (!Terminal.focus) return;
+    Terminal.focus.element.classList.remove('focus');
+    Terminal.focus.element.classList.add('blur');
     Terminal.focus.blur();
   });
 };
@@ -536,7 +552,7 @@ Terminal.prototype.open = function(parent) {
 
   // Create our main terminal element.
   this.element = this.document.createElement('div');
-  this.element.className = 'terminal';
+  this.element.className = 'terminal focus';
   this.element.style.outline = 'none';
   this.element.setAttribute('tabindex', 0);
 
@@ -1132,7 +1148,15 @@ Terminal.prototype.refresh = function(start, end) {
 Terminal.prototype._cursorBlink = function() {
   if (Terminal.focus !== this) return;
   this.cursorState ^= 1;
-  this.refresh(this.y, this.y);
+
+  var cursor = Terminal.focus.element.querySelector('.cursor');
+  if (!cursor) return;
+  if (cursor.classList.contains('reverse-video')) {
+    cursor.classList.remove('reverse-video')
+  } else {
+    cursor.classList.add('reverse-video')
+  }
+  // this.refresh(this.y, this.y);
 };
 
 Terminal.prototype.showCursor = function() {
@@ -2555,10 +2579,10 @@ Terminal.prototype.send = function(data) {
 Terminal.prototype.bell = function() {
   if (!this.visualBell) return;
   var self = this;
-  this.element.style.borderColor = 'white';
+  this.element.classList.add('bell');
   setTimeout(function() {
-    self.element.style.borderColor = '';
-  }, 10);
+    self.element.classList.remove('bell');
+  }, this.visualBell);
   if (this.popOnBell) this.focus();
 };
 
