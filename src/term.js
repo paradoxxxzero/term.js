@@ -1602,7 +1602,7 @@ Terminal.prototype.write = function(data) {
             case 1:
             case 2:
               if (this.params[1]) {
-                this.title = this.params[1];
+                this.title = this.params[1] + ' - ƸӜƷ butterfly';
                 this.handleTitle(this.title);
               }
               break;
