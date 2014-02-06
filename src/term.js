@@ -1639,8 +1639,15 @@ Terminal.prototype.write = function(data) {
               break;
             case 99:
               // Custom escape to produce raw html
-              this.lines[this.y + this.ybase][this.x] = [this.curAttr, this.params[1]];
-              this.x++;
+              var html = '<div class="inline-html">' + this.params[1] + '</div>';
+              this.lines[this.y + this.ybase][this.x] = [this.curAttr, html];
+              for(var line = 0; line < this.get_html_height_in_lines(html) - 1; line++) {
+                this.y++;
+                if (this.y > this.scrollBottom) {
+                  this.y--;
+                  this.scroll();
+                }
+              }
               this.updateRange(this.y);
               break;
             case 104:
@@ -5414,6 +5421,16 @@ Terminal.prototype.keySearch = function(ev, key) {
   }
 
   return false;
+};
+
+Terminal.prototype.get_html_height_in_lines  = function (html) {
+  var line_height = +this.children[0].style.height.replace('px', ''),
+      temp_node = document.createElement('div');
+  temp_node.innerHTML = html;
+  this.element.appendChild(temp_node)
+  var html_height = temp_node.getBoundingClientRect().height;
+  this.element.removeChild(temp_node)
+  return Math.ceil(html_height / line_height);
 };
 
 /**
